@@ -51,7 +51,8 @@ class NoteService {
           'title': trimmedTitle,
           'content': trimmedContent,
           'pin': pin,
-          'created_at': nowUtc,
+          // 'created_at': ,
+          'edited_at': nowUtc,
         };
 
         if (existingNote.id != null) {
@@ -73,7 +74,8 @@ class NoteService {
           'title': trimmedTitle,
           'content': trimmedContent,
           'pin': pin,
-          'created_at': nowUtc,
+          // 'created_at': nowUtc,
+          'edited_at': nowUtc,
         });
       }
     } catch (e) {
@@ -104,7 +106,8 @@ class NoteService {
         'title': trimmedTitle,
         'content': trimmedContent,
         'pin': pin,
-        'created_at': nowUtc,
+        // 'created_at': nowUtc,
+        'edited_at': nowUtc,
       });
 
       // 2. Xóa khỏi data_home nếu ghi chú đã tồn tại
@@ -139,7 +142,8 @@ class NoteService {
         'title': trimmedTitle,
         'content': trimmedContent,
         'pin': pin,
-        'created_at': nowUtc,
+        // 'created_at': nowUtc,
+        'edited_at': nowUtc,
       });
 
       // 2. Xóa khỏi data_archive nếu ghi chú đã tồn tại
@@ -169,7 +173,7 @@ class NoteService {
           .from(tableName)
           .select()
           .order('pin', ascending: false)
-          .order('created_at', ascending: false);
+          .order('edited_at', ascending: false);
 
       return (data as List).map((item) => Note.fromMap(item)).toList();
     } catch (e) {

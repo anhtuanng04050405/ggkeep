@@ -25,6 +25,10 @@ class CardView extends StatelessWidget {
     );
   }
 
+  String parseTime(String time){
+    return time.substring(8, 10)+'-'+time.substring(5, 7)+'-'+time.substring(0, 4);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -33,6 +37,8 @@ class CardView extends StatelessWidget {
     final title = note.title;
     final content = note.content;
     final isPinned = note.pin;
+    final createdAt = note.createdAt;
+    final editedAt = note.editedAt;
     final hasTitle = title.trim().isNotEmpty;
     final hasContent = content.trim().isNotEmpty;
 
@@ -88,7 +94,29 @@ class CardView extends StatelessWidget {
                     ],
                   ),
 
-                if (hasTitle && hasContent) const SizedBox(height: 8),
+                if (hasTitle && hasContent) const SizedBox(height: 2),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                        'Ngày tạo: '+parseTime(createdAt.toString()),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                    ),
+                    Text(
+                      'Ngày chỉnh sửa: '+parseTime(editedAt.toString()),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 2),
 
                 if (hasContent)
                   Text(

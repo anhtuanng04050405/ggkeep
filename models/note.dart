@@ -4,6 +4,7 @@ class Note {
   final String content;
   final bool pin;
   final DateTime? createdAt;
+  final DateTime? editedAt;
 
   // Constructor
   const Note({
@@ -12,6 +13,7 @@ class Note {
     this.content = '',
     this.pin = false,
     this.createdAt,
+    this.editedAt,
   });
 
   // Chuyển dữ liệu từ supabase thành note object
@@ -26,6 +28,9 @@ class Note {
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'].toString())
           : null,
+      editedAt: map['edited_at'] != null
+          ? DateTime.tryParse(map['edited_at'].toString())
+          : null,
     );
   }
 
@@ -36,7 +41,8 @@ class Note {
       'title': title,
       'content': content,
       'pin': pin,
-      'created_at': (createdAt ?? DateTime.now().toUtc()).toIso8601String(),
+      'created_at': createdAt,
+      'edited_at': (editedAt ?? DateTime.now().toUtc()).toIso8601String(),
     };
   }
 
@@ -47,6 +53,7 @@ class Note {
     String? content,
     bool? pin,
     DateTime? createdAt,
+    DateTime? editedAt,
   }) {
     return Note(
       id: id ?? this.id,
@@ -54,6 +61,7 @@ class Note {
       content: content ?? this.content,
       pin: pin ?? this.pin,
       createdAt: createdAt ?? this.createdAt,
+      editedAt: editedAt?? this.editedAt,
     );
   }
 }

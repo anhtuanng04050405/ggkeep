@@ -138,8 +138,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // Nút thêm ghi chú
       floatingActionButton: SizedBox(
-        width: 50,
-        height: 50,
+        width: 55,
+        height: 55,
         child: FloatingActionButton(
           onPressed: () async {
             await Navigator.push(
