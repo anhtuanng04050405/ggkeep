@@ -6,8 +6,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await SupabaseConfig.initialize();
-  } catch (e) {
-    // Handle Supabase init error if keys are not configured yet
+  }
+  catch (e) {
   }
   runApp(const MyApp());
 }
@@ -47,7 +47,7 @@ class _MyAppState extends State<MyApp> {
         break;
       case 'yellow':
       default:
-        seedColor = Colors.amber; // Màu vàng mặc định
+        seedColor = Colors.amber;
         break;
     }
 
