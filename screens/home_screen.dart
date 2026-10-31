@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+
 import '../models/note.dart';
+import '../models/note_sort.dart';
 import '../services/note_service.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/card_view.dart';
 import '../widgets/home_search_bar.dart';
 import 'note_editor_screen.dart';
 import 'settings_screen.dart';
+import '../widgets/note_loading.dart';
 
 class HomeScreen extends StatefulWidget {
   final String currentTheme;
@@ -25,11 +28,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   final TextEditingController _searchController = TextEditingController();
 
   List<Note> _notes = [];
   bool _isLoading = true;
   String _searchQuery = '';
+
+  // Chế độ mặc định: ghi chú sửa gần nhất hiển thị trước.
+  NoteSortMode _sortMode = NoteSortMode.editedAt;
 
   @override
   void initState() {
@@ -43,28 +50,81 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  // Lấy danh sách ghi chú từ Supabase.
   Future<void> _fetchNotes() async {
     setState(() => _isLoading = true);
+
     try {
       final data = await NoteService.getHomeNotes();
+
+      // Không cập nhật State nếu màn hình đã bị hủy.
+      if (!mounted) return;
+
       setState(() {
         _notes = data;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() => _isLoading = false);
       debugPrint('Lỗi tải danh sách ghi chú: $e');
     }
   }
 
+  // Lọc ghi chú theo tiêu đề, sau đó sắp xếp theo lựa chọn.
   List<Note> get _filteredNotes {
-    if (_searchQuery.trim().isEmpty) {
-      return _notes;
-    }
     final query = _searchQuery.trim().toLowerCase();
-    return _notes.where((note) {
-      return note.title.toLowerCase().contains(query);
-    }).toList();
+
+    // Không có từ khóa thì sử dụng toàn bộ danh sách.
+    final filtered = query.isEmpty
+        ? _notes
+        : _notes.where((note) {
+            return note.title.toLowerCase().contains(query);
+          }).toList();
+
+    // sortNotes tạo danh sách mới, không thay đổi _notes gốc.
+    return sortNotes(filtered, _sortMode);
+  }
+
+  // Hiển thị menu chọn cách sắp xếp ghi chú.
+  Widget _buildSortMenu() {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 16),
+        child: PopupMenuButton<NoteSortMode>(
+          tooltip: 'Sắp xếp ghi chú',
+          icon: const Icon(Icons.sort),
+
+          // Cập nhật màn hình khi người dùng chọn kiểu sắp xếp.
+          onSelected: (mode) {
+            setState(() {
+              _sortMode = mode;
+            });
+          },
+
+          // Dấu tích cho biết chế độ đang được sử dụng.
+          itemBuilder: (context) => [
+            CheckedPopupMenuItem<NoteSortMode>(
+              value: NoteSortMode.title,
+              checked: _sortMode == NoteSortMode.title,
+              child: const Text('Tiêu đề A-Z'),
+            ),
+            CheckedPopupMenuItem<NoteSortMode>(
+              value: NoteSortMode.createdAt,
+              checked: _sortMode == NoteSortMode.createdAt,
+              child: const Text('Ngày tạo mới nhất'),
+            ),
+            CheckedPopupMenuItem<NoteSortMode>(
+              value: NoteSortMode.editedAt,
+              checked: _sortMode == NoteSortMode.editedAt,
+              child: const Text('Ngày sửa gần nhất'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -72,19 +132,24 @@ class _HomeScreenState extends State<HomeScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    // Chỉ tính danh sách đã lọc và sắp xếp một lần mỗi build.
+    final visibleNotes = _filteredNotes;
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: theme.scaffoldBackgroundColor,
+
       drawer: KeepDrawer(
         selectedIndex: 0,
         currentTheme: widget.currentTheme,
         currentColor: widget.currentColor,
         onThemeChanged: widget.onThemeChanged,
       ),
+
       body: SafeArea(
         child: Column(
           children: [
-            // Thanh tìm kiếm
+            // Thanh tìm kiếm ghi chú.
             KeepSearchBar(
               controller: _searchController,
               onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
@@ -100,43 +165,50 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
 
+            // Menu Sorting nằm dưới thanh tìm kiếm.
+            _buildSortMenu(),
+
+            // Hiển thị loading, empty state hoặc danh sách ghi chú.
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _filteredNotes.isEmpty
-                      ? _buildEmptyState(colorScheme)
-                      : RefreshIndicator(
-                          onRefresh: _fetchNotes,
-                          child: ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-                            itemCount: _filteredNotes.length,
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (context, index) {
-                              final note = _filteredNotes[index];
-                              return CardView(
-                                note: note,
-                                onTap: () async {
-                                  await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => NoteEditorScreen(
-                                        note: note,
-                                      ),
-                                    ),
-                                  );
-                                  _fetchNotes();
-                                },
+                  ? const NoteLoading()
+                  : visibleNotes.isEmpty
+                  ? _buildEmptyState(colorScheme)
+                  : RefreshIndicator(
+                      onRefresh: _fetchNotes,
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                        itemCount: visibleNotes.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final note = visibleNotes[index];
+
+                          return CardView(
+                            note: note,
+                            onTap: () async {
+                              // Mở Editor để chỉnh sửa ghi chú.
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => NoteEditorScreen(note: note),
+                                ),
                               );
+
+                              // Tải lại dữ liệu sau khi đóng Editor.
+                              if (!mounted) return;
+                              _fetchNotes();
                             },
-                          ),
-                        ),
+                          );
+                        },
+                      ),
+                    ),
             ),
           ],
         ),
       ),
 
-      // Nút thêm ghi chú
+      // Nút tạo ghi chú mới.
       floatingActionButton: SizedBox(
         width: 55,
         height: 55,
@@ -144,10 +216,11 @@ class _HomeScreenState extends State<HomeScreen> {
           onPressed: () async {
             await Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const NoteEditorScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const NoteEditorScreen()),
             );
+
+            // Cập nhật danh sách sau khi tạo ghi chú.
+            if (!mounted) return;
             _fetchNotes();
           },
           backgroundColor: colorScheme.primary,
@@ -160,8 +233,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Hiển thị thông báo khi không có ghi chú phù hợp.
   Widget _buildEmptyState(ColorScheme colorScheme) {
     final isSearching = _searchQuery.trim().isNotEmpty;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
